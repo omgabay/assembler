@@ -5,7 +5,7 @@
 int parsingDataInstruction(char *pos, int line);
 int parsingStringInstruction(char *pos, int line);
 void writeStringToMemory(char *string);
-int doesLabelExist(char *name);
+int doesLabelExist(char *name, int line);
 labelEntry *addLabelToTable(char *name, int address);
 CommandCode *getOpcode(char *operation);
 NumericOperand *createNumericOperand(int num);
@@ -15,3 +15,4 @@ void writeCodeMapToFile(FILE *file);
 void writeDataMapToFile(FILE *file);
 static void clean();
 void deleteSymbolTable();
+void deleteCodeMap();

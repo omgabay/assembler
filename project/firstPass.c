@@ -1,11 +1,10 @@
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "cert-err34-c"
 #include "firstPass.h"
-#define COMMAND_LENGTH 100
+#define COMMAND_LENGTH 200
 #define LOAD_ADDRESS 100
 #define CODE_MAX_SIZE 1000
 #define DATA_SIZE 1000
-#define ERR_MESSAGE(line) "Error on line " #line ":"
 CommandCode commands[] = {{"mov",0,0,2,3,0,3,2},{"cmp",1,0,3,3,0,3,2},
                           {"add",2,1,2,3,0,3,2},{"sub",2,2,2,3,0,3,2},{"lea",4,0,0,3,0,1,2},{"clr",5,1,0,1,0,1,1},
                           {"not",5,2,0,1,0,1,1},{"inc", 5,3,0,1,0,1,1},{"dec", 5,4,0,1,0,1,1},
@@ -41,7 +40,7 @@ void firstPass(char *filename,char *outputFileName, int debug){
     while(memset(command,'\0',COMMAND_LENGTH) && fgets(command,COMMAND_LENGTH,srcFile) != NULL){
         char *tmp = (char *) malloc(strlen(command)+1); // DELETE
         strcpy(tmp,command); // DELETE
-        int hasLabel = 0;  /* set True if line has label definition  */
+        int hasLabel = 0;  /* set to True if line has label definition  */
         char *labelName = NULL;
         char *pos = command;  /* pos is a pointer which we'll progress as we parse the command */
         line++;
@@ -54,7 +53,7 @@ void firstPass(char *filename,char *outputFileName, int debug){
         if(strchr(command, ':'))
         {
             labelName = getLabel(&pos,line);
-            if(labelName== NULL || doesLabelExist(labelName)){
+            if(labelName== NULL || doesLabelExist(labelName, line)){
                 errorCount++;
                 continue;
             }
@@ -109,7 +108,7 @@ void firstPass(char *filename,char *outputFileName, int debug){
            if(inputLabel(&label, pos, line)){
                errorCount++;
            }
-           else if(doesLabelExist(label)){
+           else if(doesLabelExist(label, line)){
                printf("Warning on line %d: .extern - label '%s' was already defined\n", line, label);
            }
            else{
@@ -133,9 +132,9 @@ void firstPass(char *filename,char *outputFileName, int debug){
             CommandCode *cc = getOpcode(operation);
             char *srcOperand = NULL;
             char *targetOperand = NULL;
-            Word srcWord; /* srcWord will be used if the src operand requires a data word */
+            Word srcWord; /* srcWord will be used if the src operand requires additional word */
             srcWord.type = None;
-            Word targtWord;  /* targtWord will be used if the target operand requires a data word */
+            Word targtWord;  /* targtWord will be used if the target operand requires additional word */
             targtWord.type = None;
             if(cc == NULL){
                 errorCount++;
@@ -169,7 +168,7 @@ void firstPass(char *filename,char *outputFileName, int debug){
             }
 
             if(srcOperand){
-                Type type = getType(srcOperand);  /* gets the type of the operand */
+                Type type = getType(srcOperand,line);  /* gets the type of the operand */
                 switch(type){
                     case NUM:
                                 if(cc->immediate >= (unsigned) 2){
@@ -179,14 +178,14 @@ void firstPass(char *filename,char *outputFileName, int debug){
                                     srcWord.type = NO;
                                     srcWord.w.no = no;
                                 }else{
-                                    printf("%s %s command doesn't accept number(immidiate) as src operand\n",ERR_MESSAGE(line),operation);
+                                    printf("Error on line %d: %s command doesn't accept number(immidiate) as src operand\n",line,operation);
                                     errorCount++;
                                 }
                                 break;
                     case REGISTER:
                                 if(cc->reg >= (unsigned) 2){
                                     unsigned num = (unsigned) atoi(++srcOperand);
-                                    iw->srcAddrType = 3;       /* Register Addressing - mode 3  */
+                                    iw->srcAddrType = 3;       /*  Register Addressing - mode 3  */
                                     iw->srcReg = num;
                                 }else{
                                     errorCount++;
@@ -201,7 +200,7 @@ void firstPass(char *filename,char *outputFileName, int debug){
                                     iw->srcAddrType = 1;
                                 }else{
                                     errorCount++;
-                                    printf("%s %s does not accept label ('%s') as src operand\n", ERR_MESSAGE(line),operation,srcOperand);
+                                    printf("Error on line %d: %s does not accept label ('%s') as src operand\n", line,operation,srcOperand);
                                 }
                                 break;
                     case JUMP_LABEL:
@@ -213,18 +212,19 @@ void firstPass(char *filename,char *outputFileName, int debug){
                                     srcOperand++; /* skips the '&' */
                                 }else{
                                     errorCount++;
-                                    printf("%s %s does not accept jump-label ('%s') as src operand\n", ERR_MESSAGE(line),operation,srcOperand);
+                                    printf("Error on line %d: %s does not accept jump-label ('%s') as src operand\n", line,operation,srcOperand);
                                 }
                                 break;
 
                     default:
-                        printf("%s src operand ('%s') is of unknown type\n", ERR_MESSAGE(line),srcOperand);
+                        printf("Error on line %d: src operand ('%s') is of unknown type\n", line ,srcOperand);
                         errorCount++;
+                        continue;
                 }
             }
 
             if(targetOperand){
-                Type type = getType(targetOperand);
+                Type type = getType(targetOperand, line);
                 switch(type){
                     case NUM:
                         if(cc->immediate %(unsigned)2 == 1){
@@ -234,7 +234,7 @@ void firstPass(char *filename,char *outputFileName, int debug){
                             targtWord.type = NO;
                             targtWord.w.no = no;
                         }else{
-                            printf("%s %s command doesn't accept number(immidiate) as target operand\n",ERR_MESSAGE(line),operation);
+                            printf("Error on line %d: %s command doesn't accept number(immidiate) as target operand\n",line,operation);
                             errorCount++;
                         }
                         break;
@@ -258,7 +258,7 @@ void firstPass(char *filename,char *outputFileName, int debug){
                             iw->dstAddrType = 1;
                         }else{
                             errorCount++;
-                            printf("%s %s does not accept label ('%s') as target operand\n", ERR_MESSAGE(line),operation,targetOperand);
+                            printf("Error on line %d: %s does not accept label ('%s') as target operand\n", line,operation,targetOperand);
                         }
                         break;
                     case JUMP_LABEL:
@@ -270,18 +270,19 @@ void firstPass(char *filename,char *outputFileName, int debug){
                             targetOperand++; /* skips the '&' */
                         }else{
                             errorCount++;
-                            printf("%s %s does not accept jump-label ('%s') as target operand\n", ERR_MESSAGE(line),operation,targetOperand);
+                            printf("Error on line %d: %s does not accept jump-label ('%s') as target operand\n", line,operation,targetOperand);
                         }
                         break;
                     default:
-                        printf("%s %s - target operand ('%s') is of unknown type\n", ERR_MESSAGE(line),operation,targetOperand);
+                        printf("Error on line %d: %s - target operand ('%s') is of unknown type\n", line,operation,targetOperand);
                         errorCount++;
+                        continue;
                 }
             }
             iw->A = 1;
             iw->R = 0;
             iw->E = 0;
-            code[IC].type = IW;   /* setting code word to instruction */
+            code[IC].type = IW;   /* setting code word to type Instruction */
             code[IC].w.iw = iw;
 
              if(hasLabel){
@@ -376,23 +377,23 @@ void writeStringToMemory(char *string){
     while(*p != '\0'){
         if(debugMode)
             printf("'%c' was written to data map - ASCII in hex  %06x\n",*p,(unsigned int)*p);
-        data[DC++].word = *p++;
+        data[DC++].word = (int) *p++;
     }
     data[DC++].word = (unsigned int)'\0';
     if(debugMode)
         printf("'\\0' was written to data map - ASCII in hex  %06x\n",'\0');
 }
 /*
- * doesLabelExist checks if the label given by name was already defined
+ * doesLabelExist checks if the label's name was already defined
  * if label was already defined -1 is returned, 0 otherwise
  */
-int doesLabelExist(char *name) {
+int doesLabelExist(char *name, int line) {
     labelEntry *le = labels;
     if(name == NULL)
         return -1;
     while(le){
         if(strcmp(le->name, name)==0){
-            printf("Error: Label '%s' is already defined\n", name);
+            printf("Error on line %d: Label '%s' was already defined\n", line , name);
             return -1;
         }
         le = le->next;
@@ -400,7 +401,7 @@ int doesLabelExist(char *name) {
     return 0;
 }
 labelEntry *addLabelToTable(char *name, int address) {
-    static labelEntry *lastLabel = NULL;
+    static labelEntry *lastLabel = NULL; /* Points to the last label added to labels */
     labelEntry *lab = (labelEntry *) malloc(sizeof(labelEntry));
     lab->name = (char *) malloc(strlen(name)+1);
     strcpy(lab->name,name);
@@ -532,11 +533,34 @@ void writeDataMapToFile(FILE *output){
 
 static void clean(){
     printf("cleaning\n");
+    deleteCodeMap();
     IC = LOAD_ADDRESS;
     DC = DCF = 0;
     ICF = LOAD_ADDRESS;
     deleteSymbolTable();
     //deleteLabelRecords();
+}
+void deleteCodeMap(){
+  int i;
+  for(i=LOAD_ADDRESS; i<IC; i++){
+      Word word = code[i];
+      switch(word.type){
+          case IW:
+              free(word.w.iw);
+              break;
+          case NO: case JO:
+               free(word.w.no);
+               break;
+          case LO:
+              free(word.w.lo);
+              break;
+          default:
+              printf("deleteCodeMap - None\n");
+              break;
+      }
+      word.type = None;
+  }
+
 }
 void deleteSymbolTable(){
     labelEntry *le = labels;

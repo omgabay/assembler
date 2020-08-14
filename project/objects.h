@@ -46,7 +46,7 @@ typedef struct {
 } NumericOperand;
 
 typedef struct{
-    enum {None=-1,IW,NO,LO,JO} type;  /* IW - instruction | NO - Numeric operand(immediate) | LO - Label | JO - JUMP */
+    enum {None,IW,NO,LO,JO} type;  /* IW - instruction | NO - Numeric operand(immediate) | LO - Label | JO - JUMP */
     union{
         InstructionWord *iw;
         NumericOperand *no;
@@ -73,5 +73,5 @@ int skipSpaces(char **ptr);
 int inputLabel(char **ptr, char *pos, int line);
 int inputTypeA(CommandCode *cc, char **p1, char **p2,char *pos, int line);
 int inputTypeB(CommandCode *, char **, char *, int line);
-Type getType(char *);
+Type getType(char *, int line);
 labelEntry *getLabelByName(char *name);

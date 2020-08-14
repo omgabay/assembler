@@ -36,28 +36,28 @@ int errorCnt2ndPass = 0;
 
 
 void secondPass(int ICF,char *filename){
+    LabelRecord *record =records; /* record is used to complete the words in code memory which were left without address */
     updateSymbolTable(ICF);
 
     if(entries && !(errorCnt2ndPass = setEntries())){
         entryFile = createEntryFile(filename);
     }
 
-    LabelRecord *lr = records;
 
 
-    while(lr!=NULL){
-        labelEntry *le = getLabelByName(lr->name);
-        if(le == NULL){
-            printf("Error: Label %s used on line %d was not found\n",lr->name, lr->line);
+
+    while(record!=NULL){
+        labelEntry *label = getLabelByName(record->name);
+        if(label == NULL){
+            printf("Error on line %d: Label %s was not found\n", record->line , record->name);
             errorCnt2ndPass++;
         }
         else{
-           unsigned int ic = lr->address;
+           unsigned int ic = record->address; /* ic points to the */
            Word word = code[ic];
-           // printf("label %s on line %d saved on address %d\n", le->name, lr->line, le->address);
 
             if(word.type == LO){
-                if(le->visibility == EXTERN){
+                if(label->visibility == EXTERN){
                     word.w.lo->R=0;
                     word.w.lo->E=1;
                     /*
@@ -66,25 +66,25 @@ void secondPass(int ICF,char *filename){
                     if(!externalFile){
                         externalFile = createExternalFile(filename);
                     }
-                    fprintf(externalFile,"%s %07d\n",le->name,lr->address);
+                    fprintf(externalFile,"%s %07d\n",label->name, ic);
                 }else{
-                    word.w.lo->address = le->address; /* writing to code the address of label */
+                    word.w.lo->address = label->address; /* writing to code the address of label */
                 }
             }
            else if(word.type == JO){
-               if(le->type != CODE) {
-                   printf("label %s used on line %d must be referring code in a jump command\n", lr->name, lr->line);
+               if(label->type != CODE) {
+                   printf("label %s used on line %d must be referring code in a jump command\n", record->name, record->line);
                    errorCnt2ndPass++;
-               }else if(le->visibility == EXTERN){
-                   printf("Cannot jump to External label- '&%s' used on line %d\n", lr->name, lr->line);
+               }else if(label->visibility == EXTERN){
+                   printf("Cannot jump to External label- '&%s' used on line %d\n", record->name, record->line);
                    errorCnt2ndPass++;
                }
                else{
-                   word.w.no->data = le->address-ic+1;
+                   word.w.no->data = label->address-ic+1;
                }
            }
         }
-        lr = lr->next;
+        record = record->next;
     }
 
     if(externalFile){
@@ -110,6 +110,7 @@ void saveRecord(char *labelName, int address, int line){
     strcpy(record->name,labelName);
     record->address = address;
     record->line = line;
+    record->next = NULL;
     /* Adding record when list records is empty */
     if(records == NULL){
         records = record;
@@ -118,7 +119,7 @@ void saveRecord(char *labelName, int address, int line){
         /* Adding record to a non-empty list of records */
     else{
         lastRecord->next = record;
-        lastRecord = lastRecord->next;
+        lastRecord = record;
     }
 }
 
@@ -137,6 +138,7 @@ void saveEntry(char *label, int line){
     entry->name = (char *) malloc(strlen(label)+1);
     strcpy(entry->name,label);
     entry->line = line;
+    entry->next = NULL;
 
     /* Adding entry to an empty list */
     if(entries == NULL){
@@ -167,11 +169,11 @@ int setEntries(){
     while(entry != NULL){
        labelEntry *label = getLabelByName(entry->name);
        if(!label){
-           printf("Error on line %d cannot create entry because label '%s' was not defined\n",entry->line, entry->name);
+           printf("Error on line %d: cannot create entry because label '%s' was not defined\n",entry->line, entry->name);
            err++;
        }
        else if(label->visibility == EXTERN){
-           printf("Error on line %d - cannot create Entry - label '%s' must be defined in file\n",entry->line, entry->name);
+           printf("Error on line %d: cannot create Entry - label '%s' must be defined in file\n",entry->line, entry->name);
            err++;
        }else{
            label->visibility = ENTRY;

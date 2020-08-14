@@ -6,25 +6,19 @@
 #include "input.h"
 #define LABEL_LENGTH 31
 int validateNumber(char *num);
-int validateLabel(char * l);
+int validateLabel(char * l, int line);
 int isRegister(char * operand);
-int extractOperand(char * op);
+int extractOperand(char * op, int line);
 char *getLabel(char **ptr, int line){
     char *pos = *ptr;
     char *label = strtok(pos, ":");
     pos = label + strlen(label) + 1;
     *ptr = pos;
-    if(strlen(label) > LABEL_LENGTH){
-        printf("Error on line %d: Label exceeds the permitted length\n",line);
+
+    if(validateLabel(label, line)){
         return NULL;
     }
-    if(validateLabel(label)){
-        return NULL;
-    }
-    if(checkReserved(label)){
-        printf("Error on line %d: label '%s' is reserved word and cannot be used!",line,label);
-        return NULL;
-    }
+
     return label;
 }
 
@@ -39,25 +33,29 @@ int checkReserved(char *label){
     }
     return 0;
 }
-int validateLabel(char *label) {
+int validateLabel(char *label,  int line) {
     char *l = label;
+    if(strlen(label) > LABEL_LENGTH){
+        printf("Error on line %d: Label exceeds the permitted length\n",line);
+        return -1;
+    }
     if(!isalpha(*l)){
-        printf("Error: First character of a label must be a letter\n");
+        printf("Error on line %d: First character of a label must be a letter\n", line);
         return -1;
     }
 
     while(*++l != '\0'){
         if(isspace(*l)){
-            printf("Error: Label cannot contain spaces. Make sure you don't have space between the label's name and the colon\n");
+            printf("Error on line %d: Label cannot contain spaces. Make sure you don't have space between the label's name and the colon\n", line);
             return -1;
         }
         if(!isdigit(*l)&&!isalpha(*l)){
-            printf("Error: Label can contain only letters and digits\n");
+            printf("Error on line %d: Label can contain only letters and digits\n", line);
             return -1;
         }
     }
         if(checkReserved(label)){
-            printf("%s is reserved word and cant be used as a label\n", label);
+            printf("Error on line %d: label %s is reserved word and cant be used, choose another one\n", line, label);
             return -1;
         }
 
@@ -183,7 +181,7 @@ int inputTypeA(CommandCode *cc, char **p1, char **p2, char *pos, int line) {
         return -1;
     }
     pos = target+strlen(target)+1;
-    if(extractOperand(src) || extractOperand(target)){
+    if(extractOperand(src, line) || extractOperand(target, line)){
         return -1;
     }
     int i=skipSpaces(&pos);
@@ -210,9 +208,11 @@ int inputTypeB(CommandCode *cc, char **ptr,char *pos,int line){
         return -1;
     }
     pos = target+strlen(target)+1;
+    if(extractOperand(target, line)){
+        return -1;
+    }
 
-    int i=skipSpaces(&pos);
-    if(i!=1){
+    if(skipSpaces(&pos)!=1){
         printf("Error on line %d: %s - Extraneous text after the end of command\n",line, cc->name);
         return -1;
     }
@@ -244,7 +244,7 @@ int inputLabel(char **ptr, char *pos, int line){
         printf("Error on line %d: extraneous text after the end of command\n", line);
         return -1;
     }
-    if(validateLabel(label))
+    if(validateLabel(label, line))
     {
         return -1;
     }
@@ -255,28 +255,28 @@ int inputLabel(char **ptr, char *pos, int line){
  *  getType - returns the type of the operand based on the string provided
  *  types of operand can be - NUM , REGISTER, LABEL , JUMP_LABEL and UNDEFINED is returned at failure
  */
-Type getType(char *operand){
+Type getType(char *operand, int line){
     if(*operand == '#'){
         if(validateNumber(++operand)){
             return UNDEFINED;
         }
         return NUM;
     }else if(*operand == '&'){
-        if(validateLabel(++operand)){
+        if(validateLabel(++operand, line)){
             return UNDEFINED;
         }
         return JUMP_LABEL;
     }else if(isRegister(operand)){
         return REGISTER;
     }else{
-        if(validateLabel(operand)){
+        if(validateLabel(operand,line)){
             return UNDEFINED;
         }
         return LABEL;
     }
 }
 /*
- *  isRegister checks if the given string represents one of the registers
+ *  isRegister returns 1(True) if the string pointed by *operand is a register (r0-r7), returns 0 on falsehood
  */
 int isRegister(char *operand){
     if(*operand != 'r' || strlen(operand)!=2)
@@ -286,7 +286,10 @@ int isRegister(char *operand){
         return 1;
     return 0;
 }
-int extractOperand(char *op){
+/*
+ * extractOperand receives a string representing operand (*op) and removes any unnecessary spaces, if the operand contains extraneous data -1 is returned
+ */
+int extractOperand(char *op, int line){
     int flag = 0;  /* flag is set to 1 when we read the first space after an operand*/
     char *p = op;
     while(*p!='\0'){
@@ -295,12 +298,12 @@ int extractOperand(char *op){
                 *p = '\0';
                 flag = 1;
             }else if(*p == ','){
-                printf("Incorrect comma -- extractOperand\n");
+                printf("Error on line %d: Unnecessary parameters after %s\n", line, strtok(op,","));
                 return -1;
             }
         }else{
            if(!isspace(*p)) {
-               printf("Comma expected after %s\n",op);
+               printf("Error on line %d: Comma expected after %s\n",line, op);
                return -1;
            }
         }
@@ -312,7 +315,7 @@ int extractOperand(char *op){
 
 char *getString(char *pos, int line){
     int flag = 0;
-    char *string;
+    char *string = NULL;
     if(*pos != '"'){
         printf("Error on line %d: .string instruction expects a string and must include quotation mark \" \"\n", line);
         return NULL;
