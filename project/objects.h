@@ -10,13 +10,13 @@ typedef struct {
 
 typedef struct {
     char *name;     /* command name */
-    unsigned int opcode : 6;
-    unsigned int func : 5;
-    unsigned int immediate : 2;
-    unsigned int direct : 2;
-    unsigned int jump : 2;
-    unsigned int reg : 2;
-    int numOfOperands;
+    unsigned int opcode : 6; /* command's opcode */
+    unsigned int func : 5; /* command's funct field */
+    unsigned int immediate : 2; /* 2 bit field, LSB specifies if target operand accepts immediate addressing; MSB specifies for src operand  */
+    unsigned int direct : 2;    /* 2 bit field, LSB specifies if target operand accepts direct addressing; MSB specifies for src operand  */
+    unsigned int jump : 2;    /* 2 bit field, LSB specifies if target operand accepts jump addressing; MSB specifies for src operand  */
+    unsigned int reg : 2;    /* 2 bit field, LSB specifies if target operand accepts register addressing; MSB specifies for src operand  */
+    int numOfOperands;  /* Number of operands in command */
 } CommandCode;
 
 typedef struct  {
@@ -31,7 +31,7 @@ typedef struct  {
     unsigned int E : 1;
 } InstructionWord;
 
-typedef struct {
+typedef struct LabelOperand{
     unsigned address : 21;
     unsigned int A : 1;
     unsigned int R : 1;
@@ -54,16 +54,20 @@ typedef struct{
     } w;
 } Word;
 
-
+// enum Visibility{LOCAL, EXTERN, ENTRY};
 typedef struct labelEntry{
     char *name;
     unsigned int address;
     enum {CODE,DATA} type;
-    enum {LOCAL, EXTERN, ENTRY} visibility;
+    enum Visibility{LOCAL, EXTERN, ENTRY} visibility;
+
     struct labelEntry *next;
 } labelEntry;
 
 typedef enum{UNDEFINED=-1,NUM=0,LABEL,JUMP_LABEL,REGISTER} Type;
+
+
+
 
 
 char *getLabel(char **, int line);

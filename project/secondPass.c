@@ -1,35 +1,15 @@
-#include <stddef.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include "objects.h"
+
+#include "secondPass.h"
 extern Word code[];
 extern labelEntry *labels;
 extern int debugMode;
 FILE *externalFile;
 FILE *entryFile;
-void updateSymbolTable(int icf);
-int setEntries();
-FILE *createEntryFile(char *filename);
-FILE *createExternalFile(char *filename);
-void createBinaryFile(char *filename);
-static void clean(char *filename);
-void deleteEntries();
-void deleteLabelRecords();
-typedef struct entryRecord{
-    char *name;
-    int line;
-    struct entryRecord *next;
-} entryRecord;
 
-typedef struct LabelRecord{
-    char *name; /* name of label operand*/
-    int address; /* where in code memory the label is used */
-    int line;    /* line in source file */
-    struct LabelRecord *next;
-} LabelRecord;
+
 
 LabelRecord *records = NULL;
-LabelRecord *lastRecord = NULL;
+
 entryRecord *entries =NULL;
 int errorCnt2ndPass = 0;
 
@@ -48,12 +28,13 @@ void secondPass(int ICF,char *filename){
 
     while(record!=NULL){
         labelEntry *label = getLabelByName(record->name);
+
         if(label == NULL){
             printf("Error on line %d: Label %s was not found\n", record->line , record->name);
             errorCnt2ndPass++;
         }
         else{
-           unsigned int ic = record->address; /* ic points to the */
+           unsigned int ic = record->address; /* ic refers to the word in code memory that needs completion*/
            Word word = code[ic];
 
             if(word.type == LO){
@@ -73,10 +54,10 @@ void secondPass(int ICF,char *filename){
             }
            else if(word.type == JO){
                if(label->type != CODE) {
-                   printf("label %s used on line %d must be referring code in a jump command\n", record->name, record->line);
+                   printf("Error on line %d: Label '%s' must be referring code in a jump command\n", record->line, record->name);
                    errorCnt2ndPass++;
                }else if(label->visibility == EXTERN){
-                   printf("Cannot jump to External label- '&%s' used on line %d\n", record->name, record->line);
+                   printf("Error on line %d: Cannot jump to External label- '&%s' used on line %d\n", record->line, record->name, record->line);
                    errorCnt2ndPass++;
                }
                else{
@@ -100,6 +81,7 @@ void secondPass(int ICF,char *filename){
 }
 
 void saveRecord(char *labelName, int address, int line){
+    static LabelRecord *lastRecord = NULL;
     LabelRecord *record = (LabelRecord *) malloc(sizeof(LabelRecord));
     if(!labelName)
     {
@@ -173,7 +155,7 @@ int setEntries(){
            err++;
        }
        else if(label->visibility == EXTERN){
-           printf("Error on line %d: cannot create Entry - label '%s' must be defined in file\n",entry->line, entry->name);
+           printf("Error on line %d: cannot create Entry - label '%s' must be defined in file(external not allowed)\n",entry->line, entry->name);
            err++;
        }else{
            label->visibility = ENTRY;
@@ -191,7 +173,7 @@ FILE *createEntryFile(char *filename){
     strcpy(fname,filename);
     strcat(fname,".ent");
     entFile = fopen(fname,"w");
-    free(fname);
+
     if(!entFile){
         printf("Error creating Entry file \"%s\"\n",filename);
         return NULL;
@@ -205,6 +187,9 @@ FILE *createEntryFile(char *filename){
         le = le->next;
     }
     fclose(entFile);
+    if (debugMode)
+        printf("%s created successfully\n", fname);
+    free(fname);
     return entFile;
 }
 FILE *createExternalFile(char *filename){
@@ -212,6 +197,8 @@ FILE *createExternalFile(char *filename){
     strcpy(fname,filename);
     strcat(fname,".ext");
     FILE *ext = fopen(fname, "w");
+    if(debugMode)
+        printf("%s created successfully\n", fname);
     free(fname);
     return ext;
 }

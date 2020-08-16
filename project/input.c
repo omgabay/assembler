@@ -1,14 +1,8 @@
-#include <string.h>
-#include <stdio.h>
-#include <ctype.h>
-#include <stdlib.h>
+
 #include "objects.h"
 #include "input.h"
 #define LABEL_LENGTH 31
-int validateNumber(char *num);
-int validateLabel(char * l, int line);
-int isRegister(char * operand);
-int extractOperand(char * op, int line);
+
 char *getLabel(char **ptr, int line){
     char *pos = *ptr;
     char *label = strtok(pos, ":");
@@ -94,7 +88,7 @@ int getNumber(char **ptr, DataWord *dw, int line){
    }
    pos = num +strlen(num)+1;
 
-    if(validateNumber(num)){
+    if(validateNumber(num, line)){
         return -1;
     }
     /* notlast is set to true (1) if after the number we read a comma meaning that we have at least one more number*/
@@ -118,16 +112,17 @@ int getNumber(char **ptr, DataWord *dw, int line){
  * validateNumber checks if the string represents a number- it can start with +/- sign and after that only digits expected
  * if there are spaces after the number they get removed
  */
-int validateNumber(char *num){
+int validateNumber(char *num, int line){
     char *p = num;
     int flag = 0;
     if(*p == '+' || *p == '-')
         p++;
     if(!isdigit(*p))
     {
-        printf("Expecting an integer - '%c' is not a digit\n", *p);
-        return 1;
+        printf("Error on line %d: Expecting an integer - '%c' is not a digit\n", line, *p);
+        return -1;
     }
+    p++;
     while(*p != '\0'){
         if(!flag){
             if(isdigit(*p)){
@@ -139,8 +134,8 @@ int validateNumber(char *num){
                 flag = 1;
             }
             else{
-                printf("Expecting an integer - %c is not allowed\n", *p);
-                return 1;
+                printf("Error on line %d: Expecting an integer - %c is not allowed (%s)\n", line, *p, strtok(num," "));
+                return -1;
             }
         }
         else{
@@ -149,18 +144,18 @@ int validateNumber(char *num){
             }
             else{
                 if(isdigit(*p) || *p == '+' || *p == '-'){
-                    printf("Missing comma between numbers\n");
+                    printf("Error on line %d: Missing comma between numbers\n", line);
                 }else{
-                    printf("Extraneous text after number '%s' \n", num);
+                    printf("Error on line %d: Extraneous text after number '%s' \n", line, num);
                 }
-                return 1;
+                return -1;
             }
         }
     }
     return 0;
 }
 /*
- * inputTypeA handels input to instructions that have two operands - updates p1 and p2 with operands
+ * inputTypeA handles input to instructions that have two operands - updates p1 and p2 with operands
  */
 int inputTypeA(CommandCode *cc, char **p1, char **p2, char *pos, int line) {
     if(skipSpaces(&pos) == 2){
@@ -194,7 +189,7 @@ int inputTypeA(CommandCode *cc, char **p1, char **p2, char *pos, int line) {
     return 0;
 }
 /*
- * inputTypeB handels input to instructions that have one operands - updates ptr with operand
+ * inputTypeB handles input to instructions that have one operands - updates ptr with operand
  */
 int inputTypeB(CommandCode *cc, char **ptr,char *pos,int line){
     if(skipSpaces(&pos) == 2){
@@ -257,7 +252,7 @@ int inputLabel(char **ptr, char *pos, int line){
  */
 Type getType(char *operand, int line){
     if(*operand == '#'){
-        if(validateNumber(++operand)){
+        if(validateNumber(++operand, line)){
             return UNDEFINED;
         }
         return NUM;

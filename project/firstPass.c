@@ -476,19 +476,19 @@ void writeCodeMapToFile(FILE *output){
     for(i=LOAD_ADDRESS;i<IC;i++){
         if(code[i].type == IW){
             InstructionWord *iw = code[i].w.iw;
-            res.word = iw->opcode;
+            res.word = (unsigned) iw->opcode;
             res.word <<= (unsigned)2;
-            res.word += iw->srcAddrType;
+            res.word += (unsigned) iw->srcAddrType;
             res.word <<= (unsigned)3;
-            res.word += iw->srcReg;
+            res.word += (unsigned) iw->srcReg;
             res.word <<= (unsigned)2;
-            res.word += iw->dstAddrType;
+            res.word += (unsigned) iw->dstAddrType;
             res.word <<= (unsigned)3;
-            res.word += iw->dstReg;
+            res.word += (unsigned) iw->dstReg;
             res.word <<= (unsigned)5;
-            res.word += iw->func;
+            res.word += (unsigned) iw->func;
             res.word <<= (unsigned)1;
-            res.word +=iw->A;
+            res.word += (unsigned) iw->A;
             res.word <<= (unsigned)2;
 
         }else if(code[i].type == NO || code[i].type == JO){
@@ -501,15 +501,15 @@ void writeCodeMapToFile(FILE *output){
             LabelOperand *lo = code[i].w.lo;
             res.word = lo->address;
             res.word <<= (unsigned) 2;
-            res.word += lo->R;
+            res.word += (unsigned) lo->R;
             res.word <<= (unsigned) 1;
-            res.word += lo->E;
+            res.word += (unsigned) lo->E;
         }
         else if(code[i].type == None){
             printf("ERROR UNKNOWN CODE-WORD\n");
             return; // ERROR
         }
-        fprintf(output,"%07d\t%06x\n", i,res.word);
+        fprintf(output,"%07d\t%06x\n", i,(unsigned) res.word);
     }
 }
 
@@ -520,7 +520,7 @@ void writeDataMapToFile(FILE *output){
         if(i>0)
             fprintf(output,"\n");
         tmp.word = data[i].word;
-        fprintf(output,"%07d %06x", i + ICF, tmp.word);
+        fprintf(output,"%07d %06x", i + ICF, (unsigned) tmp.word);
     }
 }
 
