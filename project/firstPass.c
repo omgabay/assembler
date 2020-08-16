@@ -1,16 +1,10 @@
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "cert-err34-c"
+
 #include "firstPass.h"
 #define COMMAND_LENGTH 200
 #define LOAD_ADDRESS 100
 #define CODE_MAX_SIZE 1000
 #define DATA_SIZE 1000
-CommandCode commands[] = {{"mov",0,0,2,3,0,3,2},{"cmp",1,0,3,3,0,3,2},
-                          {"add",2,1,2,3,0,3,2},{"sub",2,2,2,3,0,3,2},{"lea",4,0,0,3,0,1,2},{"clr",5,1,0,1,0,1,1},
-                          {"not",5,2,0,1,0,1,1},{"inc", 5,3,0,1,0,1,1},{"dec", 5,4,0,1,0,1,1},
-                          {"jmp", 9,1,0,1,1,0,1}, {"bne",9,2,0,1,1,0,1},{"jsr",9,3,0,1,1,0,1},
-                          {"red",12,0,0,1,0,1,1}, {"prn",13,0,1,1,0,1,1},{"rts",14,0,0,0,0,0,0},{"stop",15,0,0,0,0,0,0}
-};
+
 Word code[CODE_MAX_SIZE];
 DataWord data[DATA_SIZE];
 labelEntry *labels; /* Symbol Table to which all labels will be added */
@@ -53,7 +47,7 @@ void firstPass(char *filename,char *outputFileName, int debug){
         if(strchr(command, ':'))
         {
             labelName = getLabel(&pos,line);
-            if(labelName== NULL || doesLabelExist(labelName, line)){
+            if(labelName== NULL || doesLabelExist(labelName, line, NULL)){
                 errorCount++;
                 continue;
             }
@@ -108,13 +102,11 @@ void firstPass(char *filename,char *outputFileName, int debug){
            if(inputLabel(&label, pos, line)){
                errorCount++;
            }
-           else if(doesLabelExist(label, line)){
-               printf("Warning on line %d: .extern - label '%s' was already defined\n", line, label);
-           }
-           else{
+           else if(!doesLabelExist(label, line, "Warning on line %d: .extern - label '%s' was already defined\n")){
                labelEntry *le = addLabelToTable(label, 0);
                le->visibility = EXTERN;
            }
+
         }
 
         else if(strcmp(operation, ".entry") == 0){
@@ -219,7 +211,6 @@ void firstPass(char *filename,char *outputFileName, int debug){
                     default:
                         printf("Error on line %d: src operand ('%s') is of unknown type\n", line ,srcOperand);
                         errorCount++;
-                        continue;
                 }
             }
 
@@ -276,7 +267,6 @@ void firstPass(char *filename,char *outputFileName, int debug){
                     default:
                         printf("Error on line %d: %s - target operand ('%s') is of unknown type\n", line,operation,targetOperand);
                         errorCount++;
-                        continue;
                 }
             }
             iw->A = 1;
@@ -326,7 +316,7 @@ void firstPass(char *filename,char *outputFileName, int debug){
  }
  /*
   * parsingDataInstruction gets the numbers given to the ".data instruction" and stores them at the data map
-  * if syntax error detected -1 is returned and the numbers written up until this point will be ignored
+  * if syntax error is detected -1 is returned and the numbers written up until this point will be ignored
   */
 int parsingDataInstruction(char *pos , int line){
     int status;
@@ -349,7 +339,9 @@ int parsingDataInstruction(char *pos , int line){
     }
     return 0;
 }
-
+/*
+ * parsingStringInstruction parses .string instruction - checks for syntax error and if everything is okay writes the string to the data map
+ */
 int parsingStringInstruction(char *pos, int line){
     char *string = NULL;
     int status;
@@ -387,14 +379,17 @@ void writeStringToMemory(char *string){
  * doesLabelExist checks if the label's name was already defined
  * if label was already defined -1 is returned, 0 otherwise
  */
-int doesLabelExist(char *name, int line) {
+int doesLabelExist(char *name, int line, char *message) {
     labelEntry *le = labels;
     if(name == NULL)
         return -1;
     while(le){
         if(strcmp(le->name, name)==0){
-            printf("Error on line %d: Label '%s' was already defined\n", line , name);
-            return -1;
+            if(!message)
+                printf("Error on line %d: Label '%s' was already defined\n", line , name);
+            else
+                printf(message, line, name);
+;            return -1;
         }
         le = le->next;
     }
@@ -402,7 +397,7 @@ int doesLabelExist(char *name, int line) {
 }
 labelEntry *addLabelToTable(char *name, int address) {
     static labelEntry *lastLabel = NULL; /* Points to the last label added to labels */
-    labelEntry *lab = (labelEntry *) malloc(sizeof(labelEntry));
+    labelEntry *lab = (labelEntry *) calloc(1,sizeof(labelEntry));
     lab->name = (char *) malloc(strlen(name)+1);
     strcpy(lab->name,name);
     lab->address = address;
@@ -471,7 +466,7 @@ void createBinaryFile(char *filename){
     writeCodeMapToFile(binaryFile);
     writeDataMapToFile(binaryFile);
     fclose(binaryFile);
-    printf("%s created successfuly\n", fname);
+    printf("%s created successfully\n", fname);
     free(fname);
 }
 
@@ -495,11 +490,7 @@ void writeCodeMapToFile(FILE *output){
             res.word <<= (unsigned)1;
             res.word +=iw->A;
             res.word <<= (unsigned)2;
-            /*
-            if(debugMode){
-                printf("%d-opcode %d\tfunc %d\tsrcAddr %d\tdstAddr %d\n",i, iw->opcode, iw->func, iw->srcAddrType, iw->dstAddrType);
-            }
-             */
+
         }else if(code[i].type == NO || code[i].type == JO){
             NumericOperand *no = code[i].w.no;
             res.word = no->data;
@@ -526,8 +517,10 @@ void writeDataMapToFile(FILE *output){
     int i;
     int24 tmp;
     for(i=0; i<DCF; i++) {
+        if(i>0)
+            fprintf(output,"\n");
         tmp.word = data[i].word;
-        fprintf(output,"%07d %06x\n", i + ICF, tmp.word);
+        fprintf(output,"%07d %06x", i + ICF, tmp.word);
     }
 }
 
@@ -538,7 +531,6 @@ static void clean(){
     DC = DCF = 0;
     ICF = LOAD_ADDRESS;
     deleteSymbolTable();
-    //deleteLabelRecords();
 }
 void deleteCodeMap(){
   int i;
