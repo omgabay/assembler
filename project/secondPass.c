@@ -210,7 +210,8 @@ static void clean(char *filename){
 
     deleteLabelRecords();  /* Deleting Label Records */
     deleteEntries();    /* Deleting Entry Records */
-
+    entryFile = NULL;
+    externalFile = NULL;
 
     if(errorCnt2ndPass){
         if(entryFile){
