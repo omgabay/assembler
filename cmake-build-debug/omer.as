@@ -4,7 +4,11 @@ STR: .string "Hello World!"
 MAIN:    prn STR
          cmp #1 , #2
          bne &MAIN
+MAIN: prn #2
 
-;MAIN: lea &STR , r6
-;NUM: .data  5 , "hello"
-;NUM2: .data 3 1 4
+prn STR
+NEWLABEL1: lea STR , r6
+NUM: .data  5 ,   7
+NUM2: .data 3, 1, 4
+TEXT .string "missing colon"
+.extern STR

@@ -169,6 +169,7 @@ int setEntries(){
 
 FILE *createEntryFile(char *filename){
     FILE *entFile;
+    labelEntry *label;
     char *fname = (char *) malloc(strlen(filename)+5);
     strcpy(fname,filename);
     strcat(fname,".ent");
@@ -178,13 +179,13 @@ FILE *createEntryFile(char *filename){
         printf("Error creating Entry file \"%s\"\n",filename);
         return NULL;
     }
-    labelEntry *le = labels;
-    while(le!=NULL){
-        if(le->visibility == ENTRY)
+    label = labels;
+    while(label!=NULL){
+        if(label->visibility == ENTRY)
         {
-            fprintf(entFile,"%s %07d\n",le->name,le->address);
+            fprintf(entFile,"%s %07d\n",label->name,label->address);
         }
-        le = le->next;
+        label = label->next;
     }
     fclose(entFile);
     if (debugMode)
@@ -193,10 +194,11 @@ FILE *createEntryFile(char *filename){
     return entFile;
 }
 FILE *createExternalFile(char *filename){
+    FILE *ext;
     char *fname = (char *) malloc(strlen(filename)+5);
     strcpy(fname,filename);
     strcat(fname,".ext");
-    FILE *ext = fopen(fname, "w");
+    ext = fopen(fname, "w");
     if(debugMode)
         printf("%s created successfully\n", fname);
     free(fname);
@@ -212,22 +214,28 @@ static void clean(char *filename){
 
     if(errorCnt2ndPass){
         if(entryFile){
+            int status;  /* status for remove operation */
+            char *ent;
             size_t len = strlen(filename)+5;
-            char ent[len];
+            ent = (char *) calloc(len,sizeof(char));
             strcpy(ent,filename);
             strcat(ent,".ent");
-            int status = remove(ent);
+            status = remove(ent);
             if(status == 0 && debugMode)
                 printf("file %s was deleted\n", ent);
+            free(ent);
         }
         if(externalFile){
+            int status;  /* status for remove operation */
+            char *ext;
             size_t len = strlen(filename)+5;
-            char ext[len];
+            ext = (char *) calloc(len,sizeof(char));
             strcpy(ext,filename);
             strcat(ext,".ext");
-            int status = remove(ext);
+            status = remove(ext);
             if(status == 0 && debugMode)
                 printf("file %s was deleted\n", ext);
+            free(ext);
         }
     }
 

@@ -17,14 +17,17 @@ int debugMode = 0;
 /*
  * firstPass will start translating the file to binary and create the symbol table which will later be used on the second pass.
  * firstPass will open and read the file given by filename parameter
+ * filename - src file name
+ * debug - shows extra prints
  */
 void firstPass(char *filename,char *outputFileName, int debug){
+    FILE *srcFile;
     int line = 0;
     int errorCount = 0;
     char command[COMMAND_LENGTH];
-
     debugMode = debug;
-    FILE *srcFile = fopen(filename,"r");
+    srcFile = fopen(filename,"r");
+
     if(!srcFile){
         printf("Error: can't open file '%s'\nMake sure the file exists\n",filename);
         return;
@@ -32,11 +35,11 @@ void firstPass(char *filename,char *outputFileName, int debug){
 
 
     while(memset(command,'\0',COMMAND_LENGTH) && fgets(command,COMMAND_LENGTH,srcFile) != NULL){
-        char *tmp = (char *) malloc(strlen(command)+1); // DELETE
-        strcpy(tmp,command); // DELETE
+
         int hasLabel = 0;  /* set to True if line has label definition  */
         char *labelName = NULL;
         char *pos = command;  /* pos is a pointer which we'll progress as we parse the command */
+        char *operation; /* Will hold the instruction's name */
         line++;
 
         if(command[0] == ';') {
@@ -57,7 +60,7 @@ void firstPass(char *filename,char *outputFileName, int debug){
 
         }
 
-        char *operation = strtok(pos, " \n\t");
+        operation = strtok(pos, " \n\t");
         if(!operation){
             if(!hasLabel && debugMode)
             {
@@ -125,8 +128,8 @@ void firstPass(char *filename,char *outputFileName, int debug){
             char *srcOperand = NULL;
             char *targetOperand = NULL;
             Word srcWord; /* srcWord will be used if the src operand requires additional word */
-            srcWord.type = None;
             Word targtWord;  /* targtWord will be used if the target operand requires additional word */
+            srcWord.type = None;
             targtWord.type = None;
             if(cc == NULL){
                 errorCount++;
@@ -165,12 +168,12 @@ void firstPass(char *filename,char *outputFileName, int debug){
                     case NUM:
                                 if(cc->immediate >= (unsigned) 2){
                                     int num = atoi(++srcOperand);
-                                    iw->srcAddrType = 0; /* Immidiate Addressing - mode 0 */
-                                    NumericOperand *no = createNumericOperand(num);  /* aka immidiate operand */
+                                    NumericOperand *no = createNumericOperand(num);  /* aka immediate operand */
+                                    iw->srcAddrType = 0; /* Immediate Addressing - mode 0 */
                                     srcWord.type = NO;
                                     srcWord.w.no = no;
                                 }else{
-                                    printf("Error on line %d: %s command doesn't accept number(immidiate) as src operand\n",line,operation);
+                                    printf("Error on line %d: %s command doesn't accept number(immediate) as src operand\n",line,operation);
                                     errorCount++;
                                 }
                                 break;
@@ -220,12 +223,12 @@ void firstPass(char *filename,char *outputFileName, int debug){
                     case NUM:
                         if(cc->immediate %(unsigned)2 == 1){
                             int num = atoi(++targetOperand);
-                            iw->dstAddrType = 0; /* Immidiate Addressing - mode 0 */
-                            NumericOperand *no = createNumericOperand(num);  /* aka immidiate operand */
+                            NumericOperand *no = createNumericOperand(num);  /* aka immediate operand */
+                            iw->dstAddrType = 0; /* Immediate Addressing - mode 0 */
                             targtWord.type = NO;
                             targtWord.w.no = no;
                         }else{
-                            printf("Error on line %d: %s command doesn't accept number(immidiate) as target operand\n",line,operation);
+                            printf("Error on line %d: %s command doesn't accept number(immediate) as target operand\n",line,operation);
                             errorCount++;
                         }
                         break;
@@ -429,9 +432,10 @@ labelEntry *getLabelByName(char *name) {
 }
 CommandCode *getOpcode(char *s){
     int i;
+    size_t length;
     if(s == NULL)
         return NULL;
-    size_t length = sizeof(commands)/sizeof(commands[0]);
+    length = sizeof(commands)/sizeof(commands[0]);
 
     for(i=0; i<length; i++){
         if(strcmp(s,commands[i].name)==0)
@@ -458,10 +462,11 @@ LabelOperand *createLabelOperand(){
 
 void createBinaryFile(char *filename){
     /* Adding .ob extension to filename */
+    FILE *binaryFile;
     char *fname = (char *) malloc(strlen(filename)+4);
     strcpy(fname,filename);
     strcat(fname,".ob");
-    FILE *binaryFile = fopen(fname, "w");
+    binaryFile = fopen(fname, "w");
     fprintf(binaryFile, "\t %d %d\n", ICF-100,DCF);
     writeCodeMapToFile(binaryFile);
     writeDataMapToFile(binaryFile);
@@ -507,7 +512,7 @@ void writeCodeMapToFile(FILE *output){
         }
         else if(code[i].type == None){
             printf("ERROR UNKNOWN CODE-WORD\n");
-            return; // ERROR
+            return;
         }
         fprintf(output,"%07d\t%06x\n", i,(unsigned) res.word);
     }

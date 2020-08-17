@@ -54,13 +54,11 @@ typedef struct{
     } w;
 } Word;
 
-// enum Visibility{LOCAL, EXTERN, ENTRY};
 typedef struct labelEntry{
     char *name;
     unsigned int address;
     enum {CODE,DATA} type;
     enum Visibility{LOCAL, EXTERN, ENTRY} visibility;
-
     struct labelEntry *next;
 } labelEntry;
 

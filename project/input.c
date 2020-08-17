@@ -158,29 +158,32 @@ int validateNumber(char *num, int line){
  * inputTypeA handles input to instructions that have two operands - updates p1 and p2 with operands
  */
 int inputTypeA(CommandCode *cc, char **p1, char **p2, char *pos, int line) {
+    char *src , *target;
     if(skipSpaces(&pos) == 2){
         printf("Error on line %d: %s command - Incorrect comma before operand\n", line , cc->name);
         return -1;
     }
-    char *src = strtok(pos,",\n");
+    src = strtok(pos,",\n");
     if(src == NULL)
     {
         printf("Error on line %d: Command %s missing operands\n",line,cc->name);
         return -1;
     }
     pos = src+strlen(src)+1;
-    char *target = strtok(pos , " \n");
+    if(extractOperand(src, line))
+        return -1;
+    target = strtok(pos , " \n");
     if(target == NULL)
     {
         printf("Error on line %d: Command %s missing target operand\n",line,cc->name);
         return -1;
     }
     pos = target+strlen(target)+1;
-    if(extractOperand(src, line) || extractOperand(target, line)){
+    if(extractOperand(target, line)){
         return -1;
     }
-    int i=skipSpaces(&pos);
-    if(i!=1){
+
+    if(skipSpaces(&pos)!=1){
         printf("Error on line %d: %s - Extraneous text after the end of command\n",line, cc->name);
         return -1;
     }
@@ -192,11 +195,12 @@ int inputTypeA(CommandCode *cc, char **p1, char **p2, char *pos, int line) {
  * inputTypeB handles input to instructions that have one operands - updates ptr with operand
  */
 int inputTypeB(CommandCode *cc, char **ptr,char *pos,int line){
+    char *target;
     if(skipSpaces(&pos) == 2){
         printf("Error on line %d: %s command - Incorrect comma before operand\n", line , cc->name);
         return -1;
     }
-    char *target = strtok(pos , " \n");
+    target = strtok(pos , " \n");
     if(target == NULL)
     {
         printf("Error on line %d: Command %s missing target operand\n",line,cc->name);
@@ -222,11 +226,12 @@ int inputTypeB(CommandCode *cc, char **ptr,char *pos,int line){
  * inputLabel returns -1 at failure, 0 on success
  */
 int inputLabel(char **ptr, char *pos, int line){
+    char *label;
     if(skipSpaces(&pos) == 2){
         printf("Error on line %d: Invalid comma before label operand\n",line);
         return -1;
     }
-    char *label = strtok(pos , " \n");
+    label = strtok(pos , " \n");
     if(label == NULL)
     {
         printf("Error on line %d: missing label operand\n", line);
@@ -234,8 +239,7 @@ int inputLabel(char **ptr, char *pos, int line){
     }
     pos = label+strlen(label)+1;
 
-    int i=skipSpaces(&pos);
-    if(i!=1){
+    if(skipSpaces(&pos)!=1){
         printf("Error on line %d: extraneous text after the end of command\n", line);
         return -1;
     }
@@ -312,7 +316,7 @@ char *getString(char *pos, int line){
     int flag = 0;
     char *string = NULL;
     if(*pos != '"'){
-        printf("Error on line %d: .string instruction expects a string and must include quotation mark \" \"\n", line);
+        printf("Error on line %d: .string instruction expects a string and must include quotation marks\n", line);
         return NULL;
     }
 
